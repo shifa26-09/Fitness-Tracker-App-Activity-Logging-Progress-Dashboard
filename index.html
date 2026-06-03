@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FitPulse — Fitness Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#080d12;--surface:#0f1721;--card:#141e2a;--border:#1e2d3d;--primary:#00D4AA;--secondary:#7C6FFF;--warn:#F59E0B;--danger:#ef4444;--text:#e0f0ff;--muted:#5a7a9a}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* Header */
+header{background:linear-gradient(135deg,#0d1b2a,#0a1520);border-bottom:1px solid var(--border);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;position:sticky;top:0;z-index:200}
+.brand{display:flex;align-items:center;gap:.75rem}
+.brand-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.brand-name{font-size:1.3rem;font-weight:800;color:var(--text)}
+.brand-name span{color:var(--primary)}
+.streak-badge{background:linear-gradient(135deg,#F59E0B,#EF4444);color:#fff;padding:.4rem 1rem;border-radius:50px;font-size:.85rem;font-weight:700;display:flex;align-items:center;gap:.4rem}
+
+/* Nav */
+nav{background:var(--surface);border-bottom:1px solid var(--border);padding:.5rem 1.5rem;display:flex;gap:.25rem;overflow-x:auto}
+.nav-btn{background:transparent;border:none;color:var(--muted);padding:.6rem 1.2rem;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.85rem;font-weight:500;white-space:nowrap;transition:all .2s}
+.nav-btn.active,.nav-btn:hover{background:var(--card);color:var(--text)}
+.nav-btn.active{color:var(--primary)}
+
+/* Layout */
+.page{display:none;padding:1.5rem;max-width:1100px;margin:0 auto}.page.active{display:block}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:1.5rem}
+.card-title{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem}
+
+/* Grid layouts */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
+@media(max-width:700px){.grid-2,.grid-3{grid-template-columns:1fr}.grid-4{grid-template-columns:1fr 1fr}}
+
+/* Ring metric */
+.ring-card{display:flex;align-items:center;gap:1.5rem}
+.ring-wrap{position:relative;flex-shrink:0}
+.ring-wrap canvas{display:block}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.ring-num{font-size:1.4rem;font-weight:800;line-height:1}
+.ring-unit{font-size:.65rem;color:var(--muted)}
+.ring-info h3{font-size:1rem;font-weight:700;margin-bottom:.3rem}
+.ring-info p{font-size:.8rem;color:var(--muted)}
+
+/* Step calorie card */
+.metric-big{text-align:center;padding:.5rem 0}
+.metric-big .num{font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,var(--primary),var(--secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.metric-big .label{font-size:.8rem;color:var(--muted);margin-top:.2rem}
+.progress-bar{height:10px;background:var(--border);border-radius:5px;overflow:hidden;margin:.75rem 0}
+.progress-fill{height:100%;border-radius:5px;transition:width .6s}
+
+/* Input row */
+.input-row{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+.inp{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.65rem 1rem;border-radius:12px;font-family:'Inter',sans-serif;font-size:.9rem;outline:none;transition:border-color .2s;flex:1;min-width:100px}
+.inp:focus{border-color:var(--primary)}
+.inp-sm{max-width:130px}
+select.inp{cursor:pointer}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.65rem 1.3rem;border-radius:12px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:.875rem;font-weight:600;transition:all .2s;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#0a0a0a}.btn-primary:hover{background:#00bfff;transform:translateY(-1px)}
+.btn-secondary{background:var(--secondary);color:#fff}.btn-secondary:hover{opacity:.85}
+.btn-sm{padding:.45rem .9rem;font-size:.8rem;border-radius:8px}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+
+/* Water grid */
+.water-glass-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
+.wglass{width:44px;height:56px;border-radius:4px 4px 8px 8px;border:2px solid var(--border);display:flex;align-items:flex-end;cursor:pointer;overflow:hidden;position:relative;transition:border-color .2s}
+.wglass.filled{border-color:var(--primary)}
+.wglass-fill{width:100%;background:linear-gradient(to top,var(--primary),#00bfff);transition:height .4s}
+.wglass:hover{border-color:var(--primary)}
+
+/* Workout list */
+.workout-item{display:flex;align-items:center;justify-content:space-between;padding:.85rem 0;border-bottom:1px solid var(--border)}
+.workout-item:last-child{border-bottom:none}
+.workout-type{font-weight:600;font-size:.9rem}
+.workout-meta{font-size:.78rem;color:var(--muted);margin-top:.15rem}
+.workout-cal{font-size:.9rem;font-weight:700;color:var(--primary)}
+.exercise-chip{display:inline-block;padding:.2rem .6rem;border-radius:6px;font-size:.72rem;font-weight:600;background:rgba(124,111,255,.15);color:var(--secondary);margin-right:.3rem}
+
+/* BMI gauge */
+.bmi-bar{height:14px;border-radius:7px;background:linear-gradient(90deg,#3B82F6 0%,#43D9AD 27%,#F59E0B 55%,#ef4444 80%);margin:.75rem 0;position:relative}
+.bmi-needle{width:3px;height:22px;background:#fff;position:absolute;top:-4px;border-radius:2px;transition:left .5s;transform:translateX(-50%)}
+.bmi-labels{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted)}
+
+/* Streak display */
+.streak-big{text-align:center;padding:1.5rem 0}
+.streak-flame{font-size:4rem;animation:bounce 2s infinite}
+@keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.streak-num{font-size:3rem;font-weight:900;background:linear-gradient(135deg,#F59E0B,#EF4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.streak-label{color:var(--muted);font-size:.9rem}
+.streak-calendar{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:1rem;justify-content:center}
+.streak-day{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;background:var(--surface);color:var(--muted)}
+.streak-day.active{background:linear-gradient(135deg,#F59E0B,#EF4444);color:#fff}
+.streak-day.today{box-shadow:0 0 0 2px var(--primary)}
+
+/* Chart container */
+.chart-wrap{position:relative;height:180px}
+
+/* Toast */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--card);border:1px solid var(--primary);border-radius:14px;padding:.9rem 1.4rem;font-size:.875rem;transform:translateX(200%);transition:transform .3s;z-index:9999;max-width:280px}
+.toast.show{transform:translateX(0)}
+
+/* Tag pills for intensity */
+.intensity-group{display:flex;gap:.5rem}
+.intensity-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:.4rem .9rem;border-radius:8px;cursor:pointer;font-size:.8rem;transition:all .2s}
+.intensity-btn.selected{background:var(--secondary);border-color:var(--secondary);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-icon">🏃</div>
+    <div class="brand-name">Fit<span>Pulse</span></div>
+  </div>
+  <div class="streak-badge" id="headerStreak">🔥 0 day streak</div>
+</header>
+<nav>
+  <button class="nav-btn active" onclick="showPage('dashboard')">📊 Dashboard</button>
+  <button class="nav-btn" onclick="showPage('steps')">👣 Steps</button>
+  <button class="nav-btn" onclick="showPage('water')">💧 Water</button>
+  <button class="nav-btn" onclick="showPage('workout')">🏋️ Workout</button>
+  <button class="nav-btn" onclick="showPage('bmi')">⚖️ BMI</button>
+  <button class="nav-btn" onclick="showPage('streak')">🔥 Streak</button>
+  <button class="nav-btn" onclick="showPage('profile')">👤 Profile</button>
+</nav>
+
+<!-- ── DASHBOARD ─────────────────────────────────────── -->
+<div class="page active" id="page-dashboard">
+  <div style="margin-bottom:1.2rem">
+    <h2 style="font-size:1.4rem;font-weight:800">Today's Overview</h2>
+    <p id="todayDate" style="color:var(--muted);font-size:.85rem"></p>
+  </div>
+  <div class="grid-4" style="margin-bottom:1.2rem" id="dashMetrics"></div>
+  <div class="grid-2" style="margin-bottom:1.2rem">
+    <div class="card">
+      <div class="card-title">📈 Weekly Steps</div>
+      <div class="chart-wrap"><canvas id="stepsChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔥 Weekly Calories</div>
+      <div class="chart-wrap"><canvas id="calChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">💧 Weekly Hydration</div>
+    <div class="chart-wrap"><canvas id="waterChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ── STEPS ─────────────────────────────────────────── -->
+<div class="page" id="page-steps">
+  <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:1.2rem">👣 Step Counter</h2>
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="card-title">Log Today's Steps</div>
+    <div class="input-row">
+      <input class="inp" type="number" id="stepInput" placeholder="Enter steps (e.g. 8000)" min="0" max="100000">
+      <button class="btn btn-primary" onclick="logSteps()">Log Steps</button>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="addSteps(1000)">+1,000</button>
+      <button class="btn btn-outline btn-sm" onclick="addSteps(2500)">+2,500</button>
+      <button class="btn btn-outline btn-sm" onclick="addSteps(5000)">+5,000</button>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Today's Steps</div>
+      <div class="ring-card">
+        <div class="ring-wrap">
+          <canvas id="stepRing" width="110" height="110"></canvas>
+          <div class="ring-center"><div class="ring-num" id="stepRingNum">0</div><div class="ring-unit">steps</div></div>
+        </div>
+        <div class="ring-info">
+          <h3 id="stepPct">0% of goal</h3>
+          <p id="stepGoalText">Goal: 10,000 steps</p>
+          <p style="margin-top:.5rem;color:var(--primary);font-weight:600" id="stepCalText">≈ 0 kcal burned</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Calorie Estimate</div>
+      <div class="metric-big">
+        <div class="num" id="stepCalBig">0</div>
+        <div class="label">kcal from steps</div>
+      </div>
+      <div style="font-size:.8rem;color:var(--muted);line-height:1.6">
+        Formula: Steps × 0.04 × (weight/70kg)<br>
+        Based on your body weight for accuracy.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── WATER ─────────────────────────────────────────── -->
+<div class="page" id="page-water">
+  <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:1.2rem">💧 Water Tracker</h2>
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="card-title">Quick Add</div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
+      <button class="btn btn-outline" onclick="logWater(150)">☕ Espresso<br><small>150ml</small></button>
+      <button class="btn btn-outline" onclick="logWater(250)">🥤 Glass<br><small>250ml</small></button>
+      <button class="btn btn-outline" onclick="logWater(330)">🍺 Can<br><small>330ml</small></button>
+      <button class="btn btn-outline" onclick="logWater(500)">💧 Bottle<br><small>500ml</small></button>
+      <button class="btn btn-outline" onclick="logWater(750)">🫙 Big Bottle<br><small>750ml</small></button>
+    </div>
+    <div class="input-row">
+      <input class="inp inp-sm" type="number" id="waterCustom" placeholder="Custom ml">
+      <button class="btn btn-primary" onclick="logWater()">Add</button>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Hydration Level</div>
+      <div class="ring-card">
+        <div class="ring-wrap">
+          <canvas id="waterRing" width="110" height="110"></canvas>
+          <div class="ring-center"><div class="ring-num" id="waterRingNum">0</div><div class="ring-unit">ml</div></div>
+        </div>
+        <div class="ring-info">
+          <h3 id="waterPct">0%</h3>
+          <p id="waterGoalText">Goal: 2500ml</p>
+          <p style="margin-top:.3rem;font-size:.8rem;color:var(--muted)" id="waterRemain"></p>
+        </div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="waterBar" style="width:0%;background:linear-gradient(90deg,#3B82F6,#00D4AA)"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Today's Log</div>
+      <div id="waterLog" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1.2rem">
+    <div class="card-title">Hydration Glasses</div>
+    <div class="water-glass-grid" id="waterGlasses"></div>
+    <p style="font-size:.75rem;color:var(--muted)">Each glass = 250ml · Click to remove last entry</p>
+  </div>
+</div>
+
+<!-- ── WORKOUT ─────────────────────────────────────────── -->
+<div class="page" id="page-workout">
+  <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:1.2rem">🏋️ Workout Logger</h2>
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="card-title">Log a Workout</div>
+    <div class="grid-2" style="margin-bottom:1rem">
+      <div>
+        <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Exercise Type</label>
+        <select class="inp" id="exType">
+          <option>Running</option><option>Walking</option><option>Cycling</option>
+          <option>Swimming</option><option>Yoga</option><option>HIIT</option>
+          <option>Weight Training</option><option>Dancing</option><option>Basketball</option>
+          <option>Soccer</option><option>Tennis</option><option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Duration (minutes)</label>
+        <input class="inp" type="number" id="exDuration" placeholder="e.g. 30" min="1" max="600">
+      </div>
+    </div>
+    <div style="margin-bottom:1rem">
+      <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.5rem">Intensity</label>
+      <div class="intensity-group" id="intensityGroup">
+        <button class="intensity-btn" data-v="low" onclick="setIntensity('low')">🟢 Low</button>
+        <button class="intensity-btn selected" data-v="medium" onclick="setIntensity('medium')">🟡 Medium</button>
+        <button class="intensity-btn" data-v="high" onclick="setIntensity('high')">🔴 High</button>
+      </div>
+    </div>
+    <input class="inp" type="text" id="exNotes" placeholder="Optional notes..." style="margin-bottom:1rem">
+    <div id="calPreview" style="font-size:.85rem;color:var(--muted);margin-bottom:1rem"></div>
+    <button class="btn btn-primary" onclick="logWorkout()">Log Workout</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Today's Workouts</div>
+    <div id="workoutList"><p style="color:var(--muted);font-size:.9rem">No workouts logged yet today.</p></div>
+  </div>
+</div>
+
+<!-- ── BMI ─────────────────────────────────────────────── -->
+<div class="page" id="page-bmi">
+  <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:1.2rem">⚖️ BMI Calculator</h2>
+  <div class="grid-2" style="margin-bottom:1.2rem">
+    <div class="card">
+      <div class="card-title">Calculate BMI</div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Height (cm)</label>
+        <input class="inp" type="number" id="bmiHeight" placeholder="e.g. 175">
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Weight (kg)</label>
+        <input class="inp" type="number" id="bmiWeight" placeholder="e.g. 70">
+      </div>
+      <button class="btn btn-primary" onclick="calcBMI()">Calculate BMI</button>
+    </div>
+    <div class="card" id="bmiResult">
+      <div class="card-title">Your BMI</div>
+      <div class="metric-big">
+        <div class="num" id="bmiNum">—</div>
+        <div class="label" id="bmiCat">Enter your measurements</div>
+      </div>
+      <div class="bmi-bar"><div class="bmi-needle" id="bmiNeedle" style="left:0%"></div></div>
+      <div class="bmi-labels">
+        <span>Underweight</span><span>Normal</span><span>Overweight</span><span>Obese</span>
+      </div>
+      <div style="margin-top:1rem;font-size:.8rem;color:var(--muted);line-height:1.6" id="bmiTip"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">BMI History</div>
+    <div class="chart-wrap"><canvas id="bmiChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ── STREAK ────────────────────────────────────────── -->
+<div class="page" id="page-streak">
+  <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:1.2rem">🔥 Activity Streak</h2>
+  <div class="grid-2">
+    <div class="card">
+      <div class="streak-big">
+        <div class="streak-flame">🔥</div>
+        <div class="streak-num" id="streakNum">0</div>
+        <div class="streak-label">Consecutive Active Days</div>
+      </div>
+      <div class="streak-calendar" id="streakCal"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">How to Keep Your Streak</div>
+      <ul style="color:var(--muted);font-size:.88rem;line-height:2;padding-left:1.2rem">
+        <li>Log at least one activity daily</li>
+        <li>Steps, workout, or water all count</li>
+        <li>Every day you're active counts +1</li>
+        <li>Missing a day resets the counter</li>
+      </ul>
+      <div style="margin-top:1.2rem;padding:1rem;background:var(--surface);border-radius:12px;font-size:.85rem">
+        <div style="color:var(--primary);font-weight:600;margin-bottom:.3rem">🏆 Milestones</div>
+        <div id="milestones" style="color:var(--muted);line-height:1.8"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROFILE ────────────────────────────────────────── -->
+<div class="page" id="page-profile">
+  <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:1.2rem">👤 Profile & Goals</h2>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Personal Info</div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Name</label><input class="inp" id="pName"></div>
+        <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Height (cm)</label><input class="inp" type="number" id="pHeight"></div>
+        <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Weight (kg)</label><input class="inp" type="number" id="pWeight"></div>
+        <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Age</label><input class="inp" type="number" id="pAge"></div>
+        <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Gender</label>
+          <select class="inp" id="pGender"><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Daily Goals</div>
+      <div style="display:flex;flex-direction:column;gap:.9rem">
+        <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Step Goal</label><input class="inp" type="number" id="pGoalSteps"></div>
+        <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Water Goal (ml)</label><input class="inp" type="number" id="pGoalWater"></div>
+        <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.3rem">Calorie Burn Goal (kcal)</label><input class="inp" type="number" id="pGoalCal"></div>
+        <button class="btn btn-primary" onclick="saveProfile()" style="margin-top:.5rem">Save Profile</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let profile={}, weeklyData=[], intensity='medium';
+let stepRingChart, waterRingChart, stepsLineChart, calLineChart, waterLineChart, bmiLineChart;
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>{
+    b.classList.toggle('active',['dashboard','steps','water','workout','bmi','streak','profile'][i]===id);
+  });
+  if(id==='dashboard')loadDashboard();
+  if(id==='steps')loadStepsPage();
+  if(id==='water')loadWaterPage();
+  if(id==='workout')loadWorkoutPage();
+  if(id==='streak')loadStreakPage();
+  if(id==='profile')loadProfilePage();
+  if(id==='bmi')loadBMIPage();
+}
+
+function toast(msg,ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.borderColor=ok?'var(--primary)':'var(--danger)';
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────
+async function loadDashboard(){
+  document.getElementById('todayDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const [dash,weekly]=await Promise.all([fetch('/api/dashboard').then(r=>r.json()),fetch('/api/weekly').then(r=>r.json())]);
+  weeklyData=weekly;
+  profile=dash.profile;
+  document.getElementById('headerStreak').textContent=`🔥 ${dash.streak} day streak`;
+
+  // Metrics
+  const stepPct=Math.min(100,Math.round(dash.today.steps/profile.goal_steps*100));
+  const waterPct=Math.min(100,Math.round(dash.water_today/profile.goal_water_ml*100));
+  const calPct=Math.min(100,Math.round(dash.total_calories/profile.goal_calories*100));
+  document.getElementById('dashMetrics').innerHTML=`
+    <div class="card"><div class="card-title">👣 Steps</div>
+      <div class="metric-big"><div class="num">${dash.today.steps.toLocaleString()}</div><div class="label">of ${profile.goal_steps.toLocaleString()}</div></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${stepPct}%;background:var(--primary)"></div></div>
+    </div>
+    <div class="card"><div class="card-title">💧 Water</div>
+      <div class="metric-big"><div class="num">${dash.water_today}</div><div class="label">ml of ${profile.goal_water_ml}ml</div></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${waterPct}%;background:#3B82F6"></div></div>
+    </div>
+    <div class="card"><div class="card-title">🔥 Calories</div>
+      <div class="metric-big"><div class="num">${dash.total_calories}</div><div class="label">kcal burned</div></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${calPct}%;background:#F59E0B"></div></div>
+    </div>
+    <div class="card"><div class="card-title">🔥 Streak</div>
+      <div class="metric-big"><div class="num">${dash.streak}</div><div class="label">days active</div></div>
+    </div>`;
+
+  // Charts
+  const labels=weekly.map(d=>new Date(d.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'}));
+  const mkChart=(id,data,color,label)=>{
+    const ctx=document.getElementById(id).getContext('2d');
+    if(window['_ch_'+id])window['_ch_'+id].destroy();
+    window['_ch_'+id]=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:color+'33',borderColor:color,borderWidth:2,borderRadius:6,label}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1e2d3d'},ticks:{color:'#5a7a9a',font:{size:10}}},y:{grid:{color:'#1e2d3d'},ticks:{color:'#5a7a9a',font:{size:10}}}}}});
+  };
+  mkChart('stepsChart',weekly.map(d=>d.steps),'#00D4AA','Steps');
+  mkChart('calChart',weekly.map(d=>d.calories),'#F59E0B','Calories');
+  mkChart('waterChart',weekly.map(d=>d.water_ml),'#3B82F6','Water ml');
+}
+
+// ── Steps ──────────────────────────────────────────────────────────
+async function loadStepsPage(){
+  const dash=await fetch('/api/dashboard').then(r=>r.json());
+  profile=dash.profile;
+  updateStepUI(dash.today.steps,dash.step_calories,profile.goal_steps);
+}
+async function logSteps(){
+  const v=parseInt(document.getElementById('stepInput').value)||0;
+  if(v<0)return;
+  const r=await fetch('/api/steps',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({steps:v})}).then(r=>r.json());
+  updateStepUI(v,r.calories,r.goal);
+  toast(`✓ ${v.toLocaleString()} steps logged! ≈${r.calories} kcal`);
+}
+function addSteps(n){
+  const cur=parseInt(document.getElementById('stepInput').value)||0;
+  document.getElementById('stepInput').value=cur+n;
+}
+function updateStepUI(steps,cal,goal){
+  document.getElementById('stepRingNum').textContent=steps.toLocaleString();
+  const pct=Math.min(100,Math.round(steps/goal*100));
+  document.getElementById('stepPct').textContent=pct+'% of goal';
+  document.getElementById('stepGoalText').textContent='Goal: '+goal.toLocaleString()+' steps';
+  document.getElementById('stepCalText').textContent='≈ '+cal+' kcal burned';
+  document.getElementById('stepCalBig').textContent=cal;
+  drawRing('stepRing',pct,'#00D4AA');
+}
+function drawRing(id,pct,color){
+  const canvas=document.getElementById(id);
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const cx=55,cy=55,r=45,startAngle=-Math.PI/2;
+  ctx.clearRect(0,0,110,110);
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle='#1e2d3d';ctx.lineWidth=10;ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,r,startAngle,startAngle+(pct/100)*Math.PI*2);
+  ctx.strokeStyle=color;ctx.lineWidth=10;ctx.lineCap='round';ctx.stroke();
+}
+
+// ── Water ──────────────────────────────────────────────────────────
+async function loadWaterPage(){
+  const dash=await fetch('/api/dashboard').then(r=>r.json());
+  profile=dash.profile;
+  updateWaterUI(dash.water_today,profile.goal_water_ml,dash.water_entries);
+}
+async function logWater(amount){
+  const ml=amount||parseInt(document.getElementById('waterCustom').value)||0;
+  if(!ml)return;
+  const r=await fetch('/api/water',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount_ml:ml})}).then(r=>r.json());
+  document.getElementById('waterCustom').value='';
+  await loadWaterPage();
+  toast(`💧 +${ml}ml added!`);
+}
+function updateWaterUI(total,goal,entries){
+  const pct=Math.min(100,Math.round(total/goal*100));
+  document.getElementById('waterRingNum').textContent=total;
+  document.getElementById('waterPct').textContent=pct+'% hydrated';
+  document.getElementById('waterGoalText').textContent='Goal: '+goal+'ml';
+  document.getElementById('waterRemain').textContent=total>=goal?'🎉 Goal reached!':`${goal-total}ml remaining`;
+  document.getElementById('waterBar').style.width=pct+'%';
+  drawRing('waterRing',pct,'#3B82F6');
+  // Log list
+  document.getElementById('waterLog').innerHTML=(entries||[]).map(e=>`
+    <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.83rem">
+      <span>💧 ${e.amount_ml}ml</span>
+      <span style="color:var(--muted)">${new Date(e.logged_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+    </div>`).join('')||'<p style="color:var(--muted);font-size:.85rem">No water logged yet.</p>';
+  // Glasses
+  const glasses=Math.floor(total/250);
+  const maxGlasses=Math.ceil(goal/250);
+  let html='';
+  for(let i=0;i<maxGlasses;i++){
+    const filled=i<glasses;
+    html+=`<div class="wglass ${filled?'filled':''}"><div class="wglass-fill" style="height:${filled?100:0}%"></div></div>`;
+  }
+  document.getElementById('waterGlasses').innerHTML=html;
+}
+
+// ── Workout ────────────────────────────────────────────────────────
+function setIntensity(v){
+  intensity=v;
+  document.querySelectorAll('.intensity-btn').forEach(b=>b.classList.toggle('selected',b.dataset.v===v));
+  updateCalPreview();
+}
+function updateCalPreview(){
+  const ex=document.getElementById('exType').value;
+  const mins=parseInt(document.getElementById('exDuration').value)||0;
+  if(!mins)return;
+  const MET={Running:9.8,Walking:3.5,Cycling:7.5,Swimming:8,Yoga:2.5,HIIT:12,'Weight Training':5,Dancing:5.5,Basketball:7,Soccer:8,Tennis:7.3,Other:5};
+  const mul={low:.75,medium:1,high:1.3}[intensity];
+  const cal=Math.round((MET[ex]||5)*mul*(profile.weight_kg||70)*(mins/60));
+  document.getElementById('calPreview').textContent=`Estimated burn: ~${cal} kcal`;
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('exDuration').addEventListener('input',updateCalPreview);
+  document.getElementById('exType').addEventListener('change',updateCalPreview);
+});
+async function loadWorkoutPage(){
+  const dash=await fetch('/api/dashboard').then(r=>r.json());
+  profile=dash.profile;
+  renderWorkouts(dash.workouts_today);
+}
+function renderWorkouts(workouts){
+  const el=document.getElementById('workoutList');
+  if(!workouts.length){el.innerHTML='<p style="color:var(--muted);font-size:.9rem">No workouts logged yet today.</p>';return;}
+  el.innerHTML=workouts.map(w=>`<div class="workout-item">
+    <div><div class="workout-type">${w.exercise_type}</div><div class="workout-meta">${w.duration_minutes} min · <span class="exercise-chip">${w.intensity}</span></div></div>
+    <div class="workout-cal">${w.calories_burned} kcal</div>
+  </div>`).join('');
+}
+async function logWorkout(){
+  const ex=document.getElementById('exType').value;
+  const mins=parseInt(document.getElementById('exDuration').value)||0;
+  const notes=document.getElementById('exNotes').value;
+  if(!mins){toast('Enter duration!',false);return;}
+  const r=await fetch('/api/workout',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({exercise_type:ex,duration_minutes:mins,intensity,notes})}).then(r=>r.json());
+  toast(`✓ ${r.exercise} logged! ${r.calories} kcal burned`);
+  document.getElementById('exDuration').value='';
+  document.getElementById('exNotes').value='';
+  await loadWorkoutPage();
+}
+
+// ── BMI ────────────────────────────────────────────────────────────
+async function loadBMIPage(){
+  const p=await fetch('/api/profile').then(r=>r.json());
+  profile=p;
+  document.getElementById('bmiHeight').value=p.height_cm;
+  document.getElementById('bmiWeight').value=p.weight_kg;
+  showBMIResult(p.bmi,p.bmi_category,p.bmi_color);
+  loadBMIChart();
+}
+function calcBMI(){
+  const h=parseFloat(document.getElementById('bmiHeight').value);
+  const w=parseFloat(document.getElementById('bmiWeight').value);
+  if(!h||!w){toast('Enter height and weight',false);return;}
+  const bmi=Math.round(w/((h/100)**2)*10)/10;
+  let cat,color;
+  if(bmi<18.5){cat='Underweight';color='#3B82F6';}
+  else if(bmi<25){cat='Normal weight';color='#43D9AD';}
+  else if(bmi<30){cat='Overweight';color='#F59E0B';}
+  else{cat='Obese';color='#ef4444';}
+  showBMIResult(bmi,cat,color);
+  // Save via profile update
+  fetch('/api/profile',{method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({...profile,height_cm:h,weight_kg:w})});
+  loadBMIChart();
+}
+function showBMIResult(bmi,cat,color){
+  document.getElementById('bmiNum').style.background=`linear-gradient(135deg,${color},${color}99)`;
+  document.getElementById('bmiNum').style['-webkit-background-clip']='text';
+  document.getElementById('bmiNum').style['-webkit-text-fill-color']='transparent';
+  document.getElementById('bmiNum').textContent=bmi;
+  document.getElementById('bmiCat').textContent=cat;
+  // Needle position: 15–40 range mapped to 0–100%
+  const pct=Math.min(100,Math.max(0,(bmi-15)/25*100));
+  document.getElementById('bmiNeedle').style.left=pct+'%';
+  const tips={Underweight:'Consider increasing calorie intake with nutrient-dense foods. Consult a nutritionist.',
+    'Normal weight':'Great job! Maintain your healthy lifestyle with regular exercise and balanced diet.',
+    Overweight:'A balanced diet and 150+ min/week of moderate exercise can help you reach Normal range.',
+    Obese:'Please consult a healthcare provider for a personalized weight management plan.'};
+  document.getElementById('bmiTip').textContent=tips[cat]||'';
+}
+async function loadBMIChart(){
+  const hist=await fetch('/api/bmi/history').then(r=>r.json());
+  if(!hist.length)return;
+  const ctx=document.getElementById('bmiChart').getContext('2d');
+  if(window._bmiChart)window._bmiChart.destroy();
+  window._bmiChart=new Chart(ctx,{type:'line',
+    data:{labels:hist.reverse().map(h=>h.recorded_at),
+          datasets:[{data:hist.map(h=>h.bmi),borderColor:'#7C6FFF',backgroundColor:'rgba(124,111,255,.1)',borderWidth:2,fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#7C6FFF',label:'BMI'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'#1e2d3d'},ticks:{color:'#5a7a9a',font:{size:10}}},y:{grid:{color:'#1e2d3d'},ticks:{color:'#5a7a9a',font:{size:10}},min:10,max:40}}}});
+}
+
+// ── Streak ─────────────────────────────────────────────────────────
+async function loadStreakPage(){
+  const weekly=await fetch('/api/weekly').then(r=>r.json());
+  const dash=await fetch('/api/dashboard').then(r=>r.json());
+  const streak=dash.streak;
+  document.getElementById('streakNum').textContent=streak;
+  document.getElementById('headerStreak').textContent=`🔥 ${streak} day streak`;
+  // Calendar (last 7 days)
+  const cal=document.getElementById('streakCal');
+  cal.innerHTML=weekly.map((d,i)=>{
+    const label=new Date(d.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'}).charAt(0);
+    const isToday=i===weekly.length-1;
+    return `<div class="streak-day ${d.active?'active':''} ${isToday?'today':''}" title="${d.date}">${label}</div>`;
+  }).join('');
+  // Milestones
+  const milestones=[[3,'🥉 3-Day Warrior'],[7,'🥈 Week Champion'],[14,'🥇 2-Week Legend'],[30,'🏆 Monthly Master'],[100,'💎 Centurion']];
+  document.getElementById('milestones').innerHTML=milestones.map(([n,l])=>
+    `<div style="color:${streak>=n?'var(--primary)':'var(--muted)'}">${streak>=n?'✅':'⬜'} ${l}</div>`
+  ).join('');
+}
+
+// ── Profile ────────────────────────────────────────────────────────
+async function loadProfilePage(){
+  const p=await fetch('/api/profile').then(r=>r.json());
+  profile=p;
+  document.getElementById('pName').value=p.name;
+  document.getElementById('pHeight').value=p.height_cm;
+  document.getElementById('pWeight').value=p.weight_kg;
+  document.getElementById('pAge').value=p.age;
+  document.getElementById('pGender').value=p.gender;
+  document.getElementById('pGoalSteps').value=p.goal_steps;
+  document.getElementById('pGoalWater').value=p.goal_water_ml;
+  document.getElementById('pGoalCal').value=p.goal_calories;
+}
+async function saveProfile(){
+  const data={name:document.getElementById('pName').value,
+    height_cm:parseFloat(document.getElementById('pHeight').value),
+    weight_kg:parseFloat(document.getElementById('pWeight').value),
+    age:parseInt(document.getElementById('pAge').value),
+    gender:document.getElementById('pGender').value,
+    goal_steps:parseInt(document.getElementById('pGoalSteps').value),
+    goal_water_ml:parseInt(document.getElementById('pGoalWater').value),
+    goal_calories:parseInt(document.getElementById('pGoalCal').value)};
+  await fetch('/api/profile',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  profile=data;
+  toast('✓ Profile saved!');
+}
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>

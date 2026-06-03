@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>💪 FitPulse — Fitness Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#060c12;--surface:#0c1520;--card:#111e2c;--border:#1a2d40;--primary:#00E5C0;--purple:#7C6FFF;--warn:#FBBF24;--danger:#EF4444;--text:#d8eeff;--muted:#4a7a9b;--green:#34D399}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* HEADER */
+header{background:linear-gradient(135deg,#0a1828,#0d2035);border-bottom:1px solid var(--border);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;position:sticky;top:0;z-index:200}
+.brand{display:flex;align-items:center;gap:.75rem}
+.brand-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--primary),var(--purple));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.brand-name{font-size:1.2rem;font-weight:900;letter-spacing:-.02em}
+.brand-name span{color:var(--primary)}
+.streak-chip{background:linear-gradient(135deg,var(--warn),var(--danger));color:#fff;padding:.38rem .9rem;border-radius:50px;font-size:.8rem;font-weight:700;display:flex;align-items:center;gap:.3rem}
+
+/* NAV */
+nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;gap:.2rem;padding:.5rem 1rem;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+.nb{background:none;border:none;color:var(--muted);padding:.55rem 1rem;border-radius:9px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.82rem;font-weight:500;white-space:nowrap;transition:all .2s}
+.nb.on,.nb:hover{background:var(--card);color:var(--text)}
+.nb.on{color:var(--primary)}
+
+/* PAGES */
+.pg{display:none;max-width:1080px;margin:0 auto;padding:1.5rem;position:relative;z-index:1}.pg.on{display:block}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:1.4rem}
+.card-title{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:.35rem}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
+@media(max-width:640px){.g2,.g3{grid-template-columns:1fr}}
+
+/* METRIC */
+.metric{text-align:center;padding:.25rem 0}
+.metric .num{font-size:2.4rem;font-weight:900;background:linear-gradient(135deg,var(--primary),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.metric .lbl{font-size:.75rem;color:var(--muted);margin-top:.3rem}
+
+/* PROGRESS */
+.pbar{height:10px;background:var(--surface);border-radius:5px;overflow:hidden;margin:.7rem 0}
+.pfill{height:100%;border-radius:5px;transition:width .6s ease}
+
+/* INPUTS */
+.inp{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.65rem 1rem;border-radius:11px;font-family:'Inter',sans-serif;font-size:.9rem;outline:none;transition:border-color .2s;width:100%}
+.inp:focus{border-color:var(--primary)}
+select.inp{cursor:pointer}
+.row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem 1.2rem;border-radius:10px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:.85rem;font-weight:600;transition:all .2s;white-space:nowrap}
+.btn-p{background:var(--primary);color:#060c12}.btn-p:hover{background:#00d4b0;transform:translateY(-1px)}
+.btn-g{background:var(--purple);color:#fff}.btn-g:hover{opacity:.85}
+.btn-o{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-o:hover{border-color:var(--primary);color:var(--primary)}
+.btn-sm{padding:.4rem .85rem;font-size:.78rem;border-radius:8px}
+
+/* RING CARD */
+.ring-card{display:flex;align-items:center;gap:1.3rem}
+.ring-wrap{position:relative;flex-shrink:0}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.ring-num{font-size:1.3rem;font-weight:800;line-height:1}
+.ring-unit{font-size:.6rem;color:var(--muted);margin-top:.1rem}
+.ring-info h4{font-size:.95rem;font-weight:700;margin-bottom:.25rem}
+.ring-info p{font-size:.78rem;color:var(--muted);line-height:1.5}
+
+/* BMI */
+.bmi-strip{height:14px;border-radius:7px;background:linear-gradient(90deg,#3B82F6 0%,#34D399 28%,#FBBF24 55%,#EF4444 80%);margin:.75rem 0;position:relative}
+.bmi-needle{width:3px;height:22px;background:#fff;position:absolute;top:-4px;border-radius:2px;transition:left .6s;transform:translateX(-50%);box-shadow:0 2px 6px rgba(0,0,0,.6)}
+.bmi-cats{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted)}
+
+/* WATER GLASSES */
+.glass-grid{display:flex;flex-wrap:wrap;gap:.4rem;margin:.75rem 0}
+.glass{width:42px;height:54px;border-radius:4px 4px 10px 10px;border:2px solid var(--border);overflow:hidden;position:relative;cursor:pointer;transition:border-color .2s}
+.glass.full{border-color:var(--primary)}
+.glass:hover{border-color:var(--primary)}
+.glass-fill{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,var(--primary),#00aeff);transition:height .4s}
+
+/* WORKOUT ITEM */
+.wo-item{display:flex;align-items:center;justify-content:space-between;padding:.8rem 0;border-bottom:1px solid var(--border)}
+.wo-item:last-child{border-bottom:none}
+.wo-type{font-weight:600;font-size:.88rem}
+.wo-meta{font-size:.75rem;color:var(--muted);margin-top:.1rem}
+.wo-cal{color:var(--primary);font-weight:700;font-size:.9rem}
+.intensity-row{display:flex;gap:.5rem}
+.ib{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:.38rem .85rem;border-radius:8px;cursor:pointer;font-size:.78rem;transition:all .2s}
+.ib.sel{border-color:var(--purple);background:rgba(124,111,255,.15);color:var(--purple)}
+
+/* STREAK */
+.streak-big{text-align:center;padding:1.5rem 0}
+.sf{font-size:3.5rem;animation:sf 2s ease-in-out infinite}
+@keyframes sf{0%,100%{transform:scale(1) rotate(0deg)}50%{transform:scale(1.12) rotate(5deg)}}
+.sn{font-size:3.2rem;font-weight:900;background:linear-gradient(135deg,var(--warn),var(--danger));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.sl{color:var(--muted);font-size:.88rem;margin-top:.25rem}
+.cal-row{display:flex;gap:.3rem;flex-wrap:wrap;justify-content:center;margin-top:1rem}
+.cday{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+.cday.active{background:linear-gradient(135deg,var(--warn),var(--danger));color:#fff;border-color:transparent}
+.cday.today{box-shadow:0 0 0 2px var(--primary)}
+
+/* CHART */
+.ch-wrap{position:relative;height:185px}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--card);border:1px solid var(--border);border-left:4px solid var(--primary);padding:.8rem 1.2rem;border-radius:14px;font-size:.875rem;transform:translateX(200%);transition:transform .3s;z-index:9999;max-width:260px}
+.toast.show{transform:translateX(0)}
+
+/* LABEL */
+.fl{display:block;font-size:.77rem;color:var(--muted);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="brand-icon">🏃</div><div class="brand-name">Fit<span>Pulse</span></div></div>
+  <div class="streak-chip" id="hStreak">🔥 0 days</div>
+</header>
+<nav>
+  <button class="nb on" onclick="goPage('dashboard')">📊 Dashboard</button>
+  <button class="nb" onclick="goPage('steps')">👣 Steps</button>
+  <button class="nb" onclick="goPage('water')">💧 Water</button>
+  <button class="nb" onclick="goPage('workout')">🏋️ Workout</button>
+  <button class="nb" onclick="goPage('bmi')">⚖️ BMI</button>
+  <button class="nb" onclick="goPage('streak')">🔥 Streak</button>
+  <button class="nb" onclick="goPage('profile')">👤 Profile</button>
+</nav>
+
+<!-- DASHBOARD -->
+<div class="pg on" id="pg-dashboard">
+  <div style="margin-bottom:1.2rem"><h2 style="font-size:1.3rem;font-weight:800">Today's Overview</h2><p id="todayLbl" style="color:var(--muted);font-size:.82rem"></p></div>
+  <div class="g4" id="dashCards" style="margin-bottom:1.2rem"></div>
+  <div class="g2" style="margin-bottom:1.2rem">
+    <div class="card"><div class="card-title">📈 7-Day Steps</div><div class="ch-wrap"><canvas id="cSteps"></canvas></div></div>
+    <div class="card"><div class="card-title">🔥 7-Day Calories</div><div class="ch-wrap"><canvas id="cCal"></canvas></div></div>
+  </div>
+  <div class="card"><div class="card-title">💧 7-Day Hydration</div><div class="ch-wrap"><canvas id="cWater"></canvas></div></div>
+</div>
+
+<!-- STEPS -->
+<div class="pg" id="pg-steps">
+  <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:1.2rem">👣 Step Counter & Calorie Estimator</h2>
+  <div class="card" style="margin-bottom:1.1rem">
+    <div class="card-title">Log Today's Steps</div>
+    <div class="row">
+      <input class="inp" type="number" id="stepInp" placeholder="e.g. 8500" min="0" style="flex:1">
+      <button class="btn btn-p" onclick="logSteps()">Log Steps</button>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap">
+      <button class="btn btn-o btn-sm" onclick="addSteps(1000)">＋1,000</button>
+      <button class="btn btn-o btn-sm" onclick="addSteps(2500)">＋2,500</button>
+      <button class="btn btn-o btn-sm" onclick="addSteps(5000)">＋5,000</button>
+      <button class="btn btn-o btn-sm" onclick="addSteps(10000)">＋10,000</button>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">Step Progress</div>
+      <div class="ring-card">
+        <div class="ring-wrap"><canvas id="stepRing" width="108" height="108"></canvas>
+          <div class="ring-center"><div class="ring-num" id="stepRingN">0</div><div class="ring-unit">steps</div></div>
+        </div>
+        <div class="ring-info"><h4 id="stepPctLbl">0% of goal</h4><p id="stepGoalLbl" style="margin-bottom:.3rem"></p><p style="color:var(--primary);font-weight:600" id="stepCalLbl">≈ 0 kcal</p></div>
+      </div>
+      <div class="pbar"><div class="pfill" id="stepBar" style="width:0%;background:var(--primary)"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Auto-Calorie Formula</div>
+      <div class="metric"><div class="num" id="stepCalBig">0</div><div class="lbl">kcal burned from steps</div></div>
+      <div style="font-size:.78rem;color:var(--muted);line-height:1.8;margin-top:.75rem">
+        <div>📐 Formula: <strong>Steps × 0.04 × (weight/70)</strong></div>
+        <div>⚖️ Your weight: <strong id="weightLbl">70</strong> kg</div>
+        <div>🎯 Goal: <strong id="stepGoalSmall">10,000</strong> steps/day</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WATER -->
+<div class="pg" id="pg-water">
+  <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:1.2rem">💧 Water Intake Tracker</h2>
+  <div class="card" style="margin-bottom:1.1rem">
+    <div class="card-title">Quick Add</div>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.85rem">
+      <button class="btn btn-o" onclick="logWater(150)">☕ 150ml</button>
+      <button class="btn btn-o" onclick="logWater(250)">🥤 250ml</button>
+      <button class="btn btn-o" onclick="logWater(330)">🍺 330ml</button>
+      <button class="btn btn-p" onclick="logWater(500)">💧 500ml</button>
+      <button class="btn btn-o" onclick="logWater(750)">🫙 750ml</button>
+    </div>
+    <div class="row"><input class="inp" type="number" id="waterInp" placeholder="Custom amount (ml)" style="flex:1"><button class="btn btn-p" onclick="logWaterCustom()">Add</button></div>
+  </div>
+  <div class="g2" style="margin-bottom:1.1rem">
+    <div class="card">
+      <div class="card-title">Hydration Level</div>
+      <div class="ring-card">
+        <div class="ring-wrap"><canvas id="waterRing" width="108" height="108"></canvas>
+          <div class="ring-center"><div class="ring-num" id="waterN">0</div><div class="ring-unit">ml</div></div>
+        </div>
+        <div class="ring-info"><h4 id="waterPctLbl">0%</h4><p id="waterGoalLbl"></p><p style="margin-top:.25rem;font-size:.78rem;color:var(--muted)" id="waterRemLbl"></p></div>
+      </div>
+      <div class="pbar"><div class="pfill" id="waterBar" style="width:0%;background:linear-gradient(90deg,#3B82F6,var(--primary))"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Today's Log</div>
+      <div id="waterLog" style="max-height:210px;overflow-y:auto;font-size:.82rem"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Hydration Glasses (1 glass = 250ml)</div>
+    <div class="glass-grid" id="glassGrid"></div>
+    <p style="font-size:.72rem;color:var(--muted)">Visual tracker — fills as you log water</p>
+  </div>
+</div>
+
+<!-- WORKOUT -->
+<div class="pg" id="pg-workout">
+  <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:1.2rem">🏋️ Workout Logger</h2>
+  <div class="card" style="margin-bottom:1.1rem">
+    <div class="card-title">Log a Workout</div>
+    <div class="g2" style="margin-bottom:.9rem">
+      <div><label class="fl">Exercise Type</label>
+        <select class="inp" id="exType" onchange="previewCal()">
+          <option>Running</option><option>Walking</option><option>Cycling</option><option>Swimming</option>
+          <option>Yoga</option><option>HIIT</option><option>Weight Training</option><option>Dancing</option>
+          <option>Basketball</option><option>Soccer</option><option>Tennis</option><option>Jump Rope</option><option>Other</option>
+        </select>
+      </div>
+      <div><label class="fl">Duration (minutes)</label><input class="inp" type="number" id="exDur" placeholder="e.g. 30" oninput="previewCal()"></div>
+    </div>
+    <div style="margin-bottom:.9rem"><label class="fl">Intensity</label>
+      <div class="intensity-row" id="intensityRow">
+        <button class="ib" data-v="low" onclick="setIntensity(this)">🟢 Low</button>
+        <button class="ib sel" data-v="medium" onclick="setIntensity(this)">🟡 Medium</button>
+        <button class="ib" data-v="high" onclick="setIntensity(this)">🔴 High</button>
+      </div>
+    </div>
+    <div style="margin-bottom:.9rem"><label class="fl">Notes</label><input class="inp" type="text" id="exNotes" placeholder="Optional notes..."></div>
+    <div id="calPrev" style="font-size:.85rem;color:var(--primary);margin-bottom:.9rem;font-weight:600"></div>
+    <button class="btn btn-p" onclick="logWorkout()">✓ Log Workout</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Today's Workouts</div>
+    <div id="workoutItems"><p style="color:var(--muted);font-size:.88rem">No workouts logged today.</p></div>
+  </div>
+</div>
+
+<!-- BMI -->
+<div class="pg" id="pg-bmi">
+  <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:1.2rem">⚖️ BMI Calculator</h2>
+  <div class="g2" style="margin-bottom:1.1rem">
+    <div class="card">
+      <div class="card-title">Calculate Your BMI</div>
+      <div style="margin-bottom:.9rem"><label class="fl">Height (cm)</label><input class="inp" type="number" id="bH" placeholder="e.g. 175" oninput="liveBMI()"></div>
+      <div style="margin-bottom:.9rem"><label class="fl">Weight (kg)</label><input class="inp" type="number" id="bW" placeholder="e.g. 70" oninput="liveBMI()"></div>
+      <div style="font-size:.78rem;color:var(--muted);line-height:1.7">📐 BMI = weight(kg) ÷ height(m)²<br>Updates automatically as you type.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Your Result</div>
+      <div class="metric"><div class="num" id="bmiNum" style="font-size:3rem">—</div><div class="lbl" id="bmiCat" style="font-size:.9rem;font-weight:600">Enter measurements</div></div>
+      <div class="bmi-strip"><div class="bmi-needle" id="bmiNeedle" style="left:0%"></div></div>
+      <div class="bmi-cats"><span>Under</span><span>Normal</span><span>Over</span><span>Obese</span></div>
+      <div style="margin-top:1rem;padding:.85rem;background:var(--surface);border-radius:12px;font-size:.8rem;color:var(--muted);line-height:1.6" id="bmiTip">Your personalised tip will appear here.</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">BMI History</div>
+    <div class="ch-wrap"><canvas id="bmiChart"></canvas></div>
+    <p style="font-size:.72rem;color:var(--muted);margin-top:.5rem">Saves each time you calculate</p>
+  </div>
+</div>
+
+<!-- STREAK -->
+<div class="pg" id="pg-streak">
+  <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:1.2rem">🔥 Activity Streak</h2>
+  <div class="g2">
+    <div class="card">
+      <div class="streak-big">
+        <div class="sf">🔥</div>
+        <div class="sn" id="streakNum">0</div>
+        <div class="sl">Consecutive Active Days</div>
+      </div>
+      <div class="cal-row" id="calRow"></div>
+      <p style="text-align:center;font-size:.75rem;color:var(--muted);margin-top:.75rem">Last 14 days · 🔥=active · ⬜=rest</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🏆 Milestones</div>
+      <div id="milestones" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.2rem"></div>
+      <div class="card-title" style="margin-top:.5rem">How Streaks Work</div>
+      <ul style="color:var(--muted);font-size:.82rem;line-height:2;padding-left:1.1rem">
+        <li>Log steps, water or a workout each day</li>
+        <li>Any activity counts toward that day</li>
+        <li>Miss a day → streak resets to 0</li>
+        <li>Streak updates automatically</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div class="pg" id="pg-profile">
+  <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:1.2rem">👤 Profile & Goals</h2>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">Personal Info</div>
+      <div style="display:flex;flex-direction:column;gap:.85rem">
+        <div><label class="fl">Name</label><input class="inp" id="pName"></div>
+        <div><label class="fl">Height (cm)</label><input class="inp" type="number" id="pH"></div>
+        <div><label class="fl">Weight (kg)</label><input class="inp" type="number" id="pW"></div>
+        <div><label class="fl">Age</label><input class="inp" type="number" id="pAge"></div>
+        <div><label class="fl">Gender</label><select class="inp" id="pGender"><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Daily Goals</div>
+      <div style="display:flex;flex-direction:column;gap:.85rem">
+        <div><label class="fl">Step Goal (steps/day)</label><input class="inp" type="number" id="gSteps"></div>
+        <div><label class="fl">Water Goal (ml/day)</label><input class="inp" type="number" id="gWater"></div>
+        <div><label class="fl">Calorie Burn Goal (kcal)</label><input class="inp" type="number" id="gCal"></div>
+        <button class="btn btn-p" style="margin-top:.5rem" onclick="saveProfile()">💾 Save Profile</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STORE ──────────────────────────────────────────────────────────
+const today=new Date().toISOString().split('T')[0];
+function ld(){try{return JSON.parse(localStorage.getItem('fitpulse')||'null');}catch(e){return null;}}
+function sv(){localStorage.setItem('fitpulse',JSON.stringify(db));}
+function initDB(){
+  return {
+    profile:{name:'User',height:170,weight:70,age:25,gender:'male',gSteps:10000,gWater:2500,gCal:500},
+    logs:{},   // date → {steps,waterEntries[],workouts[],bmiEntries[],active}
+  };
+}
+let db=ld()||initDB();
+function getLog(d=today){if(!db.logs[d])db.logs[d]={steps:0,waterEntries:[],workouts:[],bmiEntries:[],active:false};return db.logs[d];}
+
+// ── UTILS ──────────────────────────────────────────────────────────
+const MET={Running:9.8,Walking:3.5,Cycling:7.5,Swimming:8,Yoga:2.5,HIIT:12,'Weight Training':5,Dancing:5.5,Basketball:7,Soccer:8,Tennis:7.3,'Jump Rope':11,Other:5};
+function stepCal(steps){return +(steps*0.04*(db.profile.weight/70)).toFixed(1);}
+function totalWater(d=today){return (getLog(d).waterEntries||[]).reduce((s,e)=>s+e,0);}
+function totalCal(d=today){
+  const log=getLog(d);
+  const woCal=(log.workouts||[]).reduce((s,w)=>s+w.cal,0);
+  return +(stepCal(log.steps||0)+woCal).toFixed(1);
+}
+function get7Days(){const arr=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);arr.push(d.toISOString().split('T')[0]);}return arr;}
+function computeStreak(){
+  let streak=0;let d=new Date();
+  while(true){const key=d.toISOString().split('T')[0];if(db.logs[key]&&db.logs[key].active){streak++;}else if(key!==today){break;}d.setDate(d.getDate()-1);}
+  return streak;
+}
+function markActive(){getLog().active=true;sv();}
+function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=msg;t.style.borderLeftColor=ok?'var(--primary)':'var(--danger)';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+
+// ── NAV ────────────────────────────────────────────────────────────
+function goPage(id){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');
+  const idx=['dashboard','steps','water','workout','bmi','streak','profile'].indexOf(id);
+  document.querySelectorAll('.nb')[idx].classList.add('on');
+  document.getElementById('hStreak').textContent='🔥 '+computeStreak()+' days';
+  const pages={dashboard:renderDashboard,steps:renderSteps,water:renderWater,workout:renderWorkout,bmi:renderBMI,streak:renderStreak,profile:renderProfile};
+  if(pages[id])pages[id]();
+}
+
+// ── CHARTS ─────────────────────────────────────────────────────────
+function mkChart(id,data,color,label,type='bar'){
+  const ctx=document.getElementById(id);if(!ctx)return;
+  if(ctx._ch)ctx._ch.destroy();
+  const days=get7Days();
+  const lbls=days.map(d=>{const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en',{weekday:'short'});});
+  ctx._ch=new Chart(ctx,{type,data:{labels:lbls,datasets:[{data,backgroundColor:color+'30',borderColor:color,borderWidth:2,borderRadius:6,label,fill:type==='line',tension:.4,pointRadius:type==='line'?4:0,pointBackgroundColor:color}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1a2d40'},ticks:{color:'#4a7a9b',font:{size:10}}},y:{grid:{color:'#1a2d40'},ticks:{color:'#4a7a9b',font:{size:10}}}}}});
+}
+function drawRing(id,pct,color){
+  const c=document.getElementById(id);if(!c)return;
+  const ctx=c.getContext('2d');const cx=54,cy=54,r=44;
+  ctx.clearRect(0,0,108,108);
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle='#1a2d40';ctx.lineWidth=10;ctx.stroke();
+  if(pct>0){ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+pct/100*Math.PI*2);ctx.strokeStyle=color;ctx.lineWidth=10;ctx.lineCap='round';ctx.stroke();}
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────────
+function renderDashboard(){
+  document.getElementById('todayLbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const log=getLog();const p=db.profile;
+  const steps=log.steps||0,water=totalWater(),cal=totalCal(),streak=computeStreak();
+  const sPct=Math.min(100,Math.round(steps/p.gSteps*100));
+  const wPct=Math.min(100,Math.round(water/p.gWater*100));
+  const cPct=Math.min(100,Math.round(cal/p.gCal*100));
+  document.getElementById('dashCards').innerHTML=`
+    <div class="card"><div class="card-title">👣 Steps</div><div class="metric"><div class="num">${steps.toLocaleString()}</div><div class="lbl">of ${p.gSteps.toLocaleString()}</div></div><div class="pbar"><div class="pfill" style="width:${sPct}%;background:var(--primary)"></div></div></div>
+    <div class="card"><div class="card-title">💧 Water</div><div class="metric"><div class="num">${water}</div><div class="lbl">ml of ${p.gWater}ml</div></div><div class="pbar"><div class="pfill" style="width:${wPct}%;background:#3B82F6"></div></div></div>
+    <div class="card"><div class="card-title">🔥 Calories</div><div class="metric"><div class="num">${cal}</div><div class="lbl">kcal burned</div></div><div class="pbar"><div class="pfill" style="width:${cPct}%;background:var(--warn)"></div></div></div>
+    <div class="card"><div class="card-title">🔥 Streak</div><div class="metric"><div class="num">${streak}</div><div class="lbl">active days</div></div></div>`;
+  const days=get7Days();
+  mkChart('cSteps',days.map(d=>db.logs[d]?.steps||0),'#00E5C0','Steps');
+  mkChart('cCal',days.map(d=>totalCal(d)),'#FBBF24','Calories');
+  mkChart('cWater',days.map(d=>totalWater(d)),'#3B82F6','Water ml');
+}
+
+// ── STEPS ──────────────────────────────────────────────────────────
+function renderSteps(){
+  const p=db.profile;const log=getLog();const steps=log.steps||0;
+  const pct=Math.min(100,Math.round(steps/p.gSteps*100));
+  const cal=stepCal(steps);
+  document.getElementById('stepRingN').textContent=steps.toLocaleString();
+  document.getElementById('stepPctLbl').textContent=pct+'% of goal';
+  document.getElementById('stepGoalLbl').textContent='Goal: '+p.gSteps.toLocaleString();
+  document.getElementById('stepCalLbl').textContent='≈ '+cal+' kcal burned';
+  document.getElementById('stepCalBig').textContent=cal;
+  document.getElementById('stepBar').style.width=pct+'%';
+  document.getElementById('weightLbl').textContent=p.weight;
+  document.getElementById('stepGoalSmall').textContent=p.gSteps.toLocaleString();
+  document.getElementById('stepInp').value=steps||'';
+  drawRing('stepRing',pct,'#00E5C0');
+}
+function logSteps(){
+  const v=parseInt(document.getElementById('stepInp').value)||0;
+  if(v<0)return;
+  getLog().steps=v;if(v>0)markActive();sv();renderSteps();
+  toast(`✓ ${v.toLocaleString()} steps saved! ≈${stepCal(v)} kcal`);
+}
+function addSteps(n){const cur=parseInt(document.getElementById('stepInp').value)||0;document.getElementById('stepInp').value=cur+n;}
+
+// ── WATER ──────────────────────────────────────────────────────────
+function renderWater(){
+  const p=db.profile;const w=totalWater();
+  const pct=Math.min(100,Math.round(w/p.gWater*100));
+  document.getElementById('waterN').textContent=w;
+  document.getElementById('waterPctLbl').textContent=pct+'% hydrated';
+  document.getElementById('waterGoalLbl').textContent='Goal: '+p.gWater+'ml';
+  document.getElementById('waterRemLbl').textContent=w>=p.gWater?'🎉 Goal reached!':p.gWater-w+'ml remaining';
+  document.getElementById('waterBar').style.width=pct+'%';
+  drawRing('waterRing',pct,'#3B82F6');
+  // Log
+  const entries=getLog().waterEntries||[];
+  document.getElementById('waterLog').innerHTML=entries.length?
+    entries.map((e,i)=>`<div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border)"><span>💧 ${e}ml</span><span style="color:var(--muted)">Entry ${i+1}</span></div>`).join(''):
+    '<p style="color:var(--muted)">No water logged yet.</p>';
+  // Glasses
+  const glasses=Math.floor(w/250),max=Math.ceil(p.gWater/250);
+  let html='';for(let i=0;i<max;i++){const f=i<glasses;html+=`<div class="glass ${f?'full':''}"><div class="glass-fill" style="height:${f?85:0}%"></div></div>`;}
+  document.getElementById('glassGrid').innerHTML=html;
+}
+function logWater(ml){
+  const log=getLog();if(!log.waterEntries)log.waterEntries=[];
+  log.waterEntries.push(ml);markActive();sv();renderWater();
+  toast(`💧 +${ml}ml added!`);
+}
+function logWaterCustom(){const v=parseInt(document.getElementById('waterInp').value)||0;if(!v){toast('Enter amount!',false);return;}document.getElementById('waterInp').value='';logWater(v);}
+
+// ── WORKOUT ────────────────────────────────────────────────────────
+let selIntensity='medium';
+function setIntensity(el){document.querySelectorAll('.ib').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');selIntensity=el.dataset.v;previewCal();}
+function previewCal(){
+  const ex=document.getElementById('exType').value;
+  const mins=parseInt(document.getElementById('exDur').value)||0;
+  if(!mins){document.getElementById('calPrev').textContent='';return;}
+  const mul={low:.75,medium:1,high:1.3}[selIntensity];
+  const cal=Math.round((MET[ex]||5)*mul*db.profile.weight*(mins/60));
+  document.getElementById('calPrev').textContent=`Estimated burn: ~${cal} kcal`;
+}
+function renderWorkout(){
+  const workouts=getLog().workouts||[];
+  document.getElementById('workoutItems').innerHTML=workouts.length?
+    workouts.map(w=>`<div class="wo-item"><div><div class="wo-type">${w.type}</div><div class="wo-meta">${w.mins} min · ${w.intensity} intensity${w.notes?' · '+w.notes:''}</div></div><div class="wo-cal">${w.cal} kcal</div></div>`).join(''):
+    '<p style="color:var(--muted);font-size:.88rem">No workouts logged today.</p>';
+}
+function logWorkout(){
+  const ex=document.getElementById('exType').value;
+  const mins=parseInt(document.getElementById('exDur').value)||0;
+  const notes=document.getElementById('exNotes').value.trim();
+  if(!mins){toast('Enter duration!',false);return;}
+  const mul={low:.75,medium:1,high:1.3}[selIntensity];
+  const cal=+(( MET[ex]||5)*mul*db.profile.weight*(mins/60)).toFixed(1);
+  const log=getLog();if(!log.workouts)log.workouts=[];
+  log.workouts.push({type:ex,mins,intensity:selIntensity,cal,notes});
+  markActive();sv();renderWorkout();
+  document.getElementById('exDur').value='';document.getElementById('exNotes').value='';document.getElementById('calPrev').textContent='';
+  toast(`✓ ${ex} logged! ${cal} kcal burned`);
+}
+
+// ── BMI ────────────────────────────────────────────────────────────
+let bmiHistory=JSON.parse(localStorage.getItem('bmiHist')||'[]');
+function liveBMI(){
+  const h=parseFloat(document.getElementById('bH').value);
+  const w=parseFloat(document.getElementById('bW').value);
+  if(!h||!w)return;
+  const bmi=+(w/((h/100)**2)).toFixed(1);
+  document.getElementById('bmiNum').textContent=bmi;
+  let cat,color,tip;
+  if(bmi<18.5){cat='Underweight';color='#3B82F6';tip='Consider increasing nutrient-dense calorie intake. Consult a nutritionist for a personalised plan.';}
+  else if(bmi<25){cat='Normal weight ✓';color='#34D399';tip='Excellent! Maintain this with regular exercise (150+ min/week) and a balanced diet.';}
+  else if(bmi<30){cat='Overweight';color='#FBBF24';tip='A balanced diet + 150–300 min/week moderate exercise can bring you into the Normal range.';}
+  else{cat='Obese';color='#EF4444';tip='Please consult a healthcare provider for a personalised weight management plan.';}
+  document.getElementById('bmiCat').textContent=cat;
+  document.getElementById('bmiCat').style.color=color;
+  document.getElementById('bmiNum').style.background=`linear-gradient(135deg,${color},${color}99)`;
+  document.getElementById('bmiNum').style['-webkit-background-clip']='text';
+  document.getElementById('bmiNum').style['-webkit-text-fill-color']='transparent';
+  const pct=Math.min(100,Math.max(0,(bmi-14)/28*100));
+  document.getElementById('bmiNeedle').style.left=pct+'%';
+  document.getElementById('bmiTip').textContent=tip;
+  // Save history
+  const d=today;
+  if(!bmiHistory.length||bmiHistory[bmiHistory.length-1].d!==d){
+    bmiHistory.push({d,bmi});
+    if(bmiHistory.length>30)bmiHistory.shift();
+    localStorage.setItem('bmiHist',JSON.stringify(bmiHistory));
+    renderBMIChart();
+  }
+}
+function renderBMI(){
+  const p=db.profile;
+  document.getElementById('bH').value=p.height;
+  document.getElementById('bW').value=p.weight;
+  if(p.height&&p.weight)liveBMI();
+  renderBMIChart();
+}
+function renderBMIChart(){
+  if(!bmiHistory.length)return;
+  const ctx=document.getElementById('bmiChart');if(!ctx)return;
+  if(ctx._ch)ctx._ch.destroy();
+  ctx._ch=new Chart(ctx,{type:'line',data:{labels:bmiHistory.map(b=>b.d),datasets:[{data:bmiHistory.map(b=>b.bmi),borderColor:'#7C6FFF',backgroundColor:'rgba(124,111,255,.12)',borderWidth:2,fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#7C6FFF',label:'BMI'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1a2d40'},ticks:{color:'#4a7a9b',font:{size:9}}},y:{grid:{color:'#1a2d40'},ticks:{color:'#4a7a9b',font:{size:10}},min:12,max:42}}}});
+}
+
+// ── STREAK ─────────────────────────────────────────────────────────
+function renderStreak(){
+  const streak=computeStreak();
+  document.getElementById('streakNum').textContent=streak;
+  document.getElementById('hStreak').textContent='🔥 '+streak+' days';
+  // 14-day calendar
+  const days=[];for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().split('T')[0]);}
+  document.getElementById('calRow').innerHTML=days.map((d,i)=>{
+    const active=db.logs[d]&&db.logs[d].active;
+    const isToday=d===today;
+    const lbl=new Date(d+'T12:00:00').toLocaleDateString('en',{weekday:'short'}).charAt(0);
+    return `<div class="cday ${active?'active':''} ${isToday?'today':''}" title="${d}">${lbl}</div>`;
+  }).join('');
+  // Milestones
+  const ms=[[3,'🥉 3-Day Warrior'],[7,'🥈 1-Week Champion'],[14,'🥇 2-Week Legend'],[30,'🏆 Monthly Master'],[100,'💎 Centurion']];
+  document.getElementById('milestones').innerHTML=ms.map(([n,l])=>
+    `<div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.4rem .6rem;background:${streak>=n?'rgba(0,229,192,.08)':'var(--surface)'};border-radius:9px;border:1px solid ${streak>=n?'rgba(0,229,192,.2)':'var(--border)'}"><span>${streak>=n?'✅':'⬜'}</span><span style="color:${streak>=n?'var(--primary)':'var(--muted)'}">${l}</span>${streak>=n?'':'<span style="margin-left:auto;font-size:.7rem;color:var(--muted)">${n-streak} more</span>'.replace('${n-streak}',n-streak)}</div>`
+  ).join('');
+}
+
+// ── PROFILE ────────────────────────────────────────────────────────
+function renderProfile(){
+  const p=db.profile;
+  document.getElementById('pName').value=p.name;document.getElementById('pH').value=p.height;
+  document.getElementById('pW').value=p.weight;document.getElementById('pAge').value=p.age;
+  document.getElementById('pGender').value=p.gender;document.getElementById('gSteps').value=p.gSteps;
+  document.getElementById('gWater').value=p.gWater;document.getElementById('gCal').value=p.gCal;
+}
+function saveProfile(){
+  db.profile={name:document.getElementById('pName').value,height:parseFloat(document.getElementById('pH').value)||170,weight:parseFloat(document.getElementById('pW').value)||70,age:parseInt(document.getElementById('pAge').value)||25,gender:document.getElementById('pGender').value,gSteps:parseInt(document.getElementById('gSteps').value)||10000,gWater:parseInt(document.getElementById('gWater').value)||2500,gCal:parseInt(document.getElementById('gCal').value)||500};
+  sv();toast('✓ Profile saved!');
+}
+
+// INIT
+document.getElementById('todayLbl')&&(document.getElementById('todayLbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
+document.getElementById('hStreak').textContent='🔥 '+computeStreak()+' days';
+renderDashboard();
+</script>
+</body>
+</html>
