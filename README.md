@@ -47,4 +47,4 @@ A launch-level fitness tracking web app with full backend, beautiful dark UI, an
 pip install flask
 python app.py
 ```
-Open: http://localhost:5003
+Open: https://fitnesss-tracker-ss.netlify.app
